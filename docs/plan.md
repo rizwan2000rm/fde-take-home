@@ -1,13 +1,10 @@
-Session Start (Trace)
-- [ ] Catalog (span)
-- [ ] Product view (span)
-- [ ] Cart: Add, Remove (span)
-- [ ] Checkout: Success / Fail (span)
-Session End
+Session (Faro-managed; events and traces grouped by `session_id`)
+- [ ] Catalog (view event)
+- [ ] Product view (view event)
+- [ ] Cart: Add, Remove (separate trace per action)
+- [ ] Checkout: Success / Fail (separate trace per attempt)
 
-Instrumentation as custom traces+spans to behave like RUM.
-Open questions:
-- [] Do I use a RUM SDK that does session management for me out of the box? Or use otel traces exporter and do it DIY?
+Using Grafana Faro for ease of browser session management and tracing. A session groups view events and operation traces rather than being one long trace.
 
 Dashboard [Use a sensible default like Last 5 mins]
 - [ ] Total Sessions (Bar Chart): explains total visitors on the app
@@ -17,7 +14,8 @@ Dashboard [Use a sensible default like Last 5 mins]
 - [ ] Checkouts by Product (Horizontal Bar Chart): explains top purchased products (only successful)
 - [ ] Checkout Error Rate (Line Chart): explains failed checkouts relative to total checkouts  
 
-A dashboard answering the core business impact leaning more towards business than debugging. I am pretty sure we can easily adapt the instrumentation to do a debugging dashboard focused more towards dev
+A dashboard answering the core business impact leaning more towards business than debugging. I am sure we can easily adapt to do a debugging dashboard
 
 Aiden workflows
-TBD
+- [ ] TBD
+- [ ] TBD
