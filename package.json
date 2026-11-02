@@ -9,10 +9,13 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "playwright test",
+    "test:telemetry": "playwright test --config=playwright.telemetry.config.ts",
     "test:prod": "E2E_MODE=prod playwright test",
     "simulate": "node scripts/simulate-sessions.mjs"
   },
   "dependencies": {
+    "@grafana/faro-web-sdk": "^2.13.0",
+    "@grafana/faro-web-tracing": "^2.13.0",
     "next": "16.4.3",
     "react": "19.3.0",
     "react-dom": "19.3.0"
