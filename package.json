@@ -9,7 +9,7 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "playwright test",
-    "test:telemetry": "playwright test --config=playwright.telemetry.config.ts",
+    "test:telemetry": "playwright test telemetry.spec.ts",
     "test:prod": "E2E_MODE=prod playwright test",
     "simulate": "node scripts/simulate-sessions.mjs"
   },

@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 const GOOD_CARD = "4242 4242 4242 4242";
 const DECLINE_CARD = "4000 0000 0000 0002";
