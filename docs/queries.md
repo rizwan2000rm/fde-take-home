@@ -2,20 +2,20 @@
 
 Source: [dashboard JSON](observable-outfitters-dashboard.json). Six panels; all queries below match the JSON.
 
-| Panel | Source | Shows |
+| Panel | Data source | Shows |
 | --- | --- | --- |
-| Active Sessions per Minute | Faro | Sessions with recorded events each minute. |
-| Cart Dropoff Rate | Faro + backend | Inactive cart sessions without an accepted order. |
-| Views by Product | Faro | Product page views, including repeats. |
-| Checkout Attempts | Backend | Accepted, rejected, and failed API checkouts per minute. |
-| Units Purchased by Product | Backend | Quantities in saved orders over the selected range. |
-| Checkout Failure Rate | Backend + Math | Rejections and service failures divided by completed requests. |
+| Active Sessions per Minute | Frontend events | Distinct sessions with recorded events per minute. |
+| Cart Dropoff Rate | Frontend + backend events | Percentage of inactive cart sessions without an accepted order. |
+| Views by Product | Frontend events | Views per product over the selected range, including repeats. |
+| Checkout Attempts | Backend events | Successful and failed checkouts per minute. |
+| Units Purchased by Product | Backend events | Units per product in saved orders over the selected range. |
+| Checkout Failure Rate | Backend events | Failed checkouts as a percentage of completed checkouts. |
 
 Backend events are OTel logs from `observable-outfitters-api`, correlated with API/payment spans. Native OTLP fields use underscores in Loki, including `session_id`, `event_name`, and `event_data_*`. Backend queries filter `deployment_environment_name`; Faro uses `deployment_environment`.
 
 Dropoff joins both sources by the anonymous Faro session ID propagated in W3C baggage. Successful cart additions and orders come from the backend; activity includes recorded frontend and backend events. A session qualifies after 60s (demo) or 15m (normal) of inactivity. The history is 4h1m; one accepted order converts the whole session. Direct API calls without a Faro session count toward checkout totals but not session dropoff.
 
-Percentage panels use named counts and Grafana Math. Empty counts are zero; `0 / 0` leaves a gap. Checkout tooltip includes completed request count. Rejections include validation and card declines; service failures include provider errors and uncaught server errors. Thresholds are omitted until a baseline exists. Time charts use a 1-minute interval.
+Percentage panels use named counts and Grafana Math. Empty counts are zero; `0 / 0` leaves a gap. Checkout tooltip includes completed request count. Failures include all unsuccessful completed requests, regardless of cause. Failure reasons remain in telemetry. Leaving before submission is measured by cart dropoff. Thresholds are omitted until a baseline exists. Time charts use a 1-minute interval.
 
 Backend counts start when log export is enabled; earlier frontend events are not substituted. Exports are best effort, not an order ledger.
 
@@ -164,7 +164,7 @@ sum by (event_data_product_id) (
 
 ```logql
 # Count each completed API checkout once.
-sum by (event_data_result) (
+sum by (event_data_outcome) (
   count_over_time(
     {service_name="observable-outfitters-api"}
       | deployment_environment_name=~"$environment"
@@ -207,45 +207,23 @@ sum(
 or vector(0)
 ```
 
-### RejectedAttempts
-
-```logql
-# Rejected attempts per minute; zero when absent.
-sum(
-  count_over_time(
-    {service_name="observable-outfitters-api"}
-      | deployment_environment_name=~"$environment"
-      | event_name="shop.checkout"
-      | event_data_result="rejected"
-      [1m]
-  )
-)
-or vector(0)
-```
-
 ### FailedAttempts
 
 ```logql
-# Service failures per minute; zero when absent.
+# Failed checkout requests per minute; zero when absent.
 sum(
   count_over_time(
     {service_name="observable-outfitters-api"}
       | deployment_environment_name=~"$environment"
       | event_name="shop.checkout"
-      | event_data_result="error"
+      | event_data_outcome="fail"
       [1m]
   )
 )
 or vector(0)
 ```
 
-### RejectionPercentage
-
-```text
-100 * $RejectedAttempts / $CompletedAttempts
-```
-
-### ServiceFailurePercentage
+### CheckoutFailurePercentage
 
 ```text
 100 * $FailedAttempts / $CompletedAttempts

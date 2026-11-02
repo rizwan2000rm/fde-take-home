@@ -354,7 +354,7 @@
     {
       "id": 4,
       "title": "Checkout Attempts",
-      "description": "Accepted orders, rejected checkouts, and service failures per minute.",
+      "description": "Successful and failed checkout requests per minute.",
       "type": "timeseries",
       "datasource": {
         "type": "loki",
@@ -394,7 +394,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "accepted"
+              "options": "success"
             },
             "properties": [
               {
@@ -406,33 +406,14 @@
               },
               {
                 "id": "displayName",
-                "value": "Accepted"
+                "value": "Successful"
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "rejected"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "orange"
-                }
-              },
-              {
-                "id": "displayName",
-                "value": "Rejected"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "error"
+              "options": "fail"
             },
             "properties": [
               {
@@ -444,7 +425,7 @@
               },
               {
                 "id": "displayName",
-                "value": "Service error"
+                "value": "Failed"
               }
             ]
           }
@@ -464,14 +445,14 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "# Count each completed API checkout once.\nsum by (event_data_result) (\n  count_over_time(\n    {service_name=\"observable-outfitters-api\"}\n      | deployment_environment_name=~\"$environment\"\n      | event_name=\"shop.checkout\"\n      [1m]\n  )\n)",
+          "expr": "# Count each completed API checkout once.\nsum by (event_data_outcome) (\n  count_over_time(\n    {service_name=\"observable-outfitters-api\"}\n      | deployment_environment_name=~\"$environment\"\n      | event_name=\"shop.checkout\"\n      [1m]\n  )\n)",
           "queryType": "range",
           "editorMode": "code",
           "datasource": {
             "type": "loki",
             "uid": "$logs"
           },
-          "legendFormat": "{{event_data_result}}",
+          "legendFormat": "{{event_data_outcome}}",
           "interval": "1m",
           "step": "1m"
         }
@@ -566,7 +547,7 @@
     {
       "id": 6,
       "title": "Checkout Failure Rate",
-      "description": "Rejections and service failures as percentages of completed API checkout requests.",
+      "description": "Failed checkout requests as a percentage of completed requests.",
       "type": "timeseries",
       "datasource": {
         "type": "loki",
@@ -602,7 +583,7 @@
               "mode": "off"
             },
             "pointSize": 5,
-            "axisLabel": "Attempts (%)",
+            "axisLabel": "Failed attempts (%)",
             "axisPlacement": "left"
           },
           "max": 100
@@ -611,26 +592,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "RejectionPercentage"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "orange"
-                }
-              },
-              {
-                "id": "displayName",
-                "value": "Rejected"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "ServiceFailurePercentage"
+              "options": "CheckoutFailurePercentage"
             },
             "properties": [
               {
@@ -642,7 +604,7 @@
               },
               {
                 "id": "displayName",
-                "value": "Service error"
+                "value": "Failure rate"
               }
             ]
           },
@@ -680,7 +642,7 @@
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true,
+          "showLegend": false,
           "calcs": []
         },
         "tooltip": {
@@ -704,45 +666,21 @@
           "hide": false
         },
         {
-          "refId": "RejectedAttempts",
-          "expr": "# Rejected attempts per minute; zero when absent.\nsum(\n  count_over_time(\n    {service_name=\"observable-outfitters-api\"}\n      | deployment_environment_name=~\"$environment\"\n      | event_name=\"shop.checkout\"\n      | event_data_result=\"rejected\"\n      [1m]\n  )\n)\nor vector(0)",
-          "queryType": "range",
-          "editorMode": "code",
-          "datasource": {
-            "type": "loki",
-            "uid": "$logs"
-          },
-          "legendFormat": "Rejected attempts",
-          "interval": "1m",
-          "step": "1m",
-          "hide": true
-        },
-        {
           "refId": "FailedAttempts",
-          "expr": "# Service failures per minute; zero when absent.\nsum(\n  count_over_time(\n    {service_name=\"observable-outfitters-api\"}\n      | deployment_environment_name=~\"$environment\"\n      | event_name=\"shop.checkout\"\n      | event_data_result=\"error\"\n      [1m]\n  )\n)\nor vector(0)",
+          "expr": "# Failed checkout requests per minute; zero when absent.\nsum(\n  count_over_time(\n    {service_name=\"observable-outfitters-api\"}\n      | deployment_environment_name=~\"$environment\"\n      | event_name=\"shop.checkout\"\n      | event_data_outcome=\"fail\"\n      [1m]\n  )\n)\nor vector(0)",
           "queryType": "range",
           "editorMode": "code",
           "datasource": {
             "type": "loki",
             "uid": "$logs"
           },
-          "legendFormat": "Service failures",
+          "legendFormat": "Failed attempts",
           "interval": "1m",
           "step": "1m",
           "hide": true
         },
         {
-          "refId": "RejectionPercentage",
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "type": "math",
-          "expression": "100 * $RejectedAttempts / $CompletedAttempts",
-          "hide": false
-        },
-        {
-          "refId": "ServiceFailurePercentage",
+          "refId": "CheckoutFailurePercentage",
           "datasource": {
             "type": "__expr__",
             "uid": "__expr__"
