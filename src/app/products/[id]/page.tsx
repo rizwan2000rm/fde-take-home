@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddToCartButton } from "@/components/AddToCartButton";
+import { StoreView } from "@/components/StoreView";
 import { formatPrice, getProduct } from "@/lib/products";
 
 export default async function ProductPage({ params }: PageProps<"/products/[id]">) {
@@ -10,6 +11,7 @@ export default async function ProductPage({ params }: PageProps<"/products/[id]"
 
   return (
     <article className="product">
+      <StoreView view="product" productId={product.id} category={product.category} />
       <Link href="/" className="back">
         ← Back to shop
       </Link>

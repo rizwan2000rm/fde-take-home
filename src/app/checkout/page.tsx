@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useCart } from "@/components/CartProvider";
 import { formatPrice } from "@/lib/products";
+import { startOperation, trackEvent } from "@/lib/telemetry";
 
 const ERROR_MESSAGES: Record<string, string> = {
   payment_declined: "Your payment was declined. Please try another card.",
@@ -24,6 +25,10 @@ export default function CheckoutPage() {
     const form = new FormData(e.currentTarget);
     setSubmitting(true);
     setError(null);
+    const operation = startOperation("shop.checkout", {
+      item_count: String(cart.itemCount), total_cents: String(cart.total),
+    });
+    let accepted = false;
 
     try {
       const res = await fetch("/api/checkout", {
@@ -40,12 +45,21 @@ export default function CheckoutPage() {
       });
       const data = await res.json();
       if (!res.ok) {
+        const code = Object.hasOwn(ERROR_MESSAGES, data.error) ? data.error : "unexpected_response";
+        operation.finish("fail", code, { http_status: String(res.status) });
         setError(ERROR_MESSAGES[data.error] ?? "Something went wrong. Please try again.");
         return;
+      }
+      accepted = true;
+      operation.finish("success", "none", { http_status: String(res.status) });
+      for (const item of cart.items) {
+        trackEvent("shop.product_purchased", { product_id: item.productId, quantity: String(item.quantity) });
       }
       await refresh();
       router.push(`/orders/${data.orderId}`);
     } catch {
+      if (accepted) trackEvent("shop.checkout_ui_failure", { error_code: "post_checkout_refresh_failed" });
+      else operation.finish("fail", "network_or_response_error");
       setError("Network error. Please try again.");
     } finally {
       setSubmitting(false);

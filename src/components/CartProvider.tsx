@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { CartView } from "@/lib/store";
+import { startOperation } from "@/lib/telemetry";
 
 interface CartContextValue {
   cart: CartView;
@@ -42,11 +43,27 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const addItem = useCallback(async (productId: string, quantity = 1) => {
-    setCart(await cartRequest("POST", { productId, quantity }));
+    const operation = startOperation("shop.cart_add", { product_id: productId, quantity: String(quantity) });
+    try {
+      setCart(await cartRequest("POST", { productId, quantity }));
+      operation.finish("success");
+    } catch (error) {
+      operation.finish("fail", "cart_request_failed");
+      throw error;
+    }
   }, []);
 
   const setQuantity = useCallback(async (productId: string, quantity: number) => {
-    setCart(await cartRequest("PATCH", { productId, quantity }));
+    const operation = startOperation(quantity === 0 ? "shop.cart_remove" : "shop.cart_update", {
+      product_id: productId, quantity: String(quantity),
+    });
+    try {
+      setCart(await cartRequest("PATCH", { productId, quantity }));
+      operation.finish("success");
+    } catch (error) {
+      operation.finish("fail", "cart_request_failed");
+      throw error;
+    }
   }, []);
 
   return (

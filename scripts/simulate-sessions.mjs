@@ -143,7 +143,7 @@ const browser = await chromium.launch({ channel: "chrome", headless: true }).cat
 const tally = {};
 for (let i = 1; i <= SESSIONS; i++) {
   const persona = choosePersona();
-  const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   const page = await context.newPage();
   let outcome;
   try {

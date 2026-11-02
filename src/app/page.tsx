@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { StoreView } from "@/components/StoreView";
 import { CATEGORIES, formatPrice, PRODUCTS } from "@/lib/products";
 
 export default async function Home({ searchParams }: PageProps<"/">) {
@@ -7,6 +8,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
   return (
     <>
+      <StoreView view="catalog" category={CATEGORIES.find((value) => value === category) ?? "all"} />
       <h1>Shop</h1>
       <div className="filters">
         <Link href="/" className={!category ? "chip active" : "chip"}>
