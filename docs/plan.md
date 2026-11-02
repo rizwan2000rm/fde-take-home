@@ -8,11 +8,11 @@ Using Grafana Faro for ease of browser session management and tracing. A session
 
 Dashboard [Use a sensible default like Last 5 mins]
 - [x] Active Sessions per Minute (Bar Chart): distinct sessions with recorded activity in each 1-minute bucket
-- [x] Dropoffs Percentage (Line Chart): a Faro session is a dropoff if it has at least one successful add-to-cart, no successful checkout, and no new recorded session events for the configured timeout. Divide by all qualified sessions reaching that timeout in the same minute. Browsing-only sessions, failed cart additions, and sessions with more recent events are excluded. Default 60s for the simulator demo; 15m normal option. There is no separate session-termination condition. Accepted tradeoff: one successful checkout converts the entire Faro session rather than tracking separate shopping journeys.
+- [x] Cart Dropoff Rate (Line Chart): inactive sessions with a backend-confirmed cart addition and no accepted order, divided by eligible sessions in the same minute. Frontend and backend activity share the Faro session ID through W3C baggage. Default timeout: 60s demo / 15m normal. One accepted order converts the whole session.
 - [x] Views by Product (Horizontal Bar Chart): explains top viewed products
-- [x] Checkouts (Stacked Bar Chart): checkout attempts in 1-minute buckets with success/fail stacked bars
-- [x] Checkouts by Product (Horizontal Bar Chart): explains top purchased products (only successful)
-- [x] Checkout Error Rate (Line Chart): explains failed checkouts relative to total checkouts
+- [x] Checkout Attempts (Stacked Bar Chart): completed API requests per minute, split into accepted, rejected, and service error
+- [x] Units Purchased by Product (Horizontal Bar Chart): quantities from saved backend orders over the selected range
+- [x] Checkout Failure Rate (Line Chart): rejections and service failures divided by completed API requests; request count in the tooltip
 
 A dashboard answering the core business impact leaning more towards business than debugging. I am sure we can easily adapt to do a debugging dashboard
 

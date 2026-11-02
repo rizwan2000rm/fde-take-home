@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { resolveCartId, withCartCookie } from "@/lib/cart-cookie";
 import { getProduct } from "@/lib/products";
 import { addToCart, clearCart, getCart, setCartQuantity } from "@/lib/store";
-import { traceApiRoute } from "@/lib/server-telemetry";
+import { recordServerEvent, traceApiRoute } from "@/lib/server-telemetry";
 
 export const GET = traceApiRoute("/api/cart", async function GET(request: NextRequest) {
   const { cartId, isNew } = resolveCartId(request);
@@ -19,6 +19,7 @@ export const POST = traceApiRoute("/api/cart", async function POST(request: Next
   }
   const qty = Math.max(1, Number(quantity));
   addToCart(cartId, productId, qty);
+  recordServerEvent("shop.cart_add", { outcome: "success", product_id: productId, quantity: qty });
   return withCartCookie(NextResponse.json(getCart(cartId)), cartId, isNew);
 });
 

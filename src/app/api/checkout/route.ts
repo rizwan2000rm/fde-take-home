@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { resolveCartId } from "@/lib/cart-cookie";
 import { chargeCard, PaymentDeclinedError } from "@/lib/payments";
 import { clearCart, getCart, MAX_QTY_IN_STOCK, saveOrder, type CartView, type ShippingDetails } from "@/lib/store";
-import { setServerAttributes, traceApiRoute } from "@/lib/server-telemetry";
+import { recordServerEvent, setServerAttributes, traceApiRoute } from "@/lib/server-telemetry";
 
 interface CheckoutRequest {
   shipping: ShippingDetails;
@@ -42,6 +42,10 @@ export const POST = traceApiRoute("/api/checkout", async function POST(request: 
     await chargeCard(cardNumber, cart.total);
   } catch (err) {
     if (err instanceof PaymentDeclinedError) {
+      setServerAttributes({
+        "shop.failure.kind": err.message === "processor_error" ? "provider" : "declined",
+        "shop.payment.error_code": err.message,
+      });
       return fail({ status: 402, error: "payment_declined", details: { reason: err.message } });
     }
     throw err;
@@ -56,6 +60,9 @@ export const POST = traceApiRoute("/api/checkout", async function POST(request: 
     createdAt: new Date().toISOString(),
   };
   saveOrder(order);
+  for (const item of order.items) {
+    recordServerEvent("shop.product_purchased", { product_id: item.productId, quantity: item.quantity });
+  }
   clearCart(cartId);
 
   return NextResponse.json({ orderId: order.id }, { status: 201 });

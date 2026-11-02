@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useCart } from "@/components/CartProvider";
 import { StoreView } from "@/components/StoreView";
 import { formatPrice } from "@/lib/products";
-import { startOperation, trackEvent } from "@/lib/telemetry";
+import { startOperation } from "@/lib/telemetry";
 
 const ERROR_MESSAGES: Record<string, string> = {
   payment_declined: "Your payment was declined. Please try another card.",
@@ -53,13 +53,10 @@ export default function CheckoutPage() {
       }
       accepted = true;
       operation.finish("success", "none", { http_status: String(res.status) });
-      for (const item of cart.items) {
-        trackEvent("shop.product_purchased", { product_id: item.productId, quantity: String(item.quantity) });
-      }
       await refresh();
       router.push(`/orders/${data.orderId}`);
     } catch {
-      if (accepted) trackEvent("shop.checkout_ui_failure", { error_code: "post_checkout_refresh_failed" });
+      if (accepted) operation.trackEvent("shop.checkout_ui_failure", { error_code: "post_checkout_refresh_failed" });
       else operation.finish("fail", "network_or_response_error");
       setError("Network error. Please try again.");
     } finally {

@@ -4,6 +4,8 @@
 //   - PAYMENT_FAILURE_RATE (default 0.1)  -> random declines
 //   - SLOW_PAYMENT_RATE (default 0.1)     -> 3-5s responses instead of 0.2-1s
 
+import { inServerSpan, setServerAttributes } from "./server-telemetry";
+
 export class PaymentDeclinedError extends Error {
   constructor(reason: string) {
     super(reason);
@@ -18,6 +20,23 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const between = (min: number, max: number) => min + Math.random() * (max - min);
 
 export async function chargeCard(cardNumber: string, amount: number): Promise<{ transactionId: string }> {
+  // This provider is an in-process simulation, so the default INTERNAL kind is
+  // appropriate. A real remote provider would get an HTTP CLIENT span instead.
+  return inServerSpan("payment.charge", {
+    attributes: { "shop.payment.provider": "simulated", "shop.payment.amount_cents": amount },
+  }, async () => {
+    try {
+      const result = await charge(cardNumber, amount);
+      setServerAttributes({ "shop.outcome": "success" });
+      return result;
+    } catch (error) {
+      if (error instanceof PaymentDeclinedError) setServerAttributes({ "shop.error_code": error.message });
+      throw error;
+    }
+  });
+}
+
+async function charge(cardNumber: string, amount: number): Promise<{ transactionId: string }> {
   const digits = cardNumber.replace(/\D/g, "");
   if (digits.length < 12) throw new PaymentDeclinedError("invalid_card_number");
   if (amount <= 0) throw new PaymentDeclinedError("invalid_amount");

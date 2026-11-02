@@ -1,8 +1,13 @@
 import { test as base } from "@playwright/test";
+import { startCollector } from "./otel-collector";
 
 export { expect } from "@playwright/test";
 
-export const test = base.extend({
+export const test = base.extend<object, { backendTelemetry: Awaited<ReturnType<typeof startCollector>> }>({
+  backendTelemetry: [async ({}, runTests) => {
+    const collector = await startCollector();
+    try { await runTests(collector); } finally { await collector.close(); }
+  }, { scope: "worker", auto: true }],
   page: async ({ page }, runTest) => {
     // Faro stays enabled for every browser test. Tests can override this route
     // to inspect payloads or simulate a collector outage.

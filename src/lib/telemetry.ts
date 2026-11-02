@@ -6,6 +6,7 @@ import {
 } from "@grafana/faro-web-sdk";
 import { TracingInstrumentation } from "@grafana/faro-web-tracing";
 import { propagation, ROOT_CONTEXT, SpanKind, SpanStatusCode, type Span } from "@opentelemetry/api";
+import { W3CBaggagePropagator } from "@opentelemetry/core";
 
 let faro: Faro | undefined;
 
@@ -49,8 +50,8 @@ export function initializeTelemetry() {
   });
 }
 
-export function trackEvent(name: string, attributes: Record<string, string> = {}) {
-  safely(() => faro?.api.pushEvent(name, attributes, "shop", { skipDedupe: true }));
+export function trackEvent(name: string, attributes: Record<string, string> = {}, span?: Span) {
+  safely(() => faro?.api.pushEvent(name, attributes, "shop", { skipDedupe: true, spanContext: span?.spanContext() }));
 }
 
 export type ShopView = "catalog" | "product" | "cart" | "checkout" | "order_confirmation";
@@ -70,6 +71,14 @@ export async function requestApi(path: "/api/cart" | "/api/checkout", init: Requ
   }, parent));
   const headers = new Headers(init.headers);
   safely(() => {
+    const session = faro?.api.getSession()?.id;
+    if (session && /^[a-zA-Z0-9_-]{1,128}$/.test(session)) {
+      const baggage = propagation.createBaggage({ "session.id": { value: session } });
+      new W3CBaggagePropagator().inject(propagation.setBaggage(parent, baggage), headers, {
+        set: (carrier, key, value) => carrier.set(key, value),
+      });
+      span?.setAttribute("session.id", session);
+    }
     if (otel && span) propagation.inject(otel.trace.setSpan(parent, span), headers, {
       set: (carrier, key, value) => carrier.set(key, value),
     });
@@ -111,6 +120,7 @@ export function startOperation(name: string, attributes: Record<string, string> 
 
   return {
     fetch: (path: "/api/cart" | "/api/checkout", init?: RequestInit) => requestApi(path, init, span),
+    trackEvent: (event: string, fields: Record<string, string>) => trackEvent(event, fields, span),
     finish(outcome: "success" | "fail", errorCode = "none", extra: Record<string, string> = {}) {
       if (finished) return;
       finished = true;

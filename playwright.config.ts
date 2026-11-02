@@ -16,6 +16,16 @@ const webServer = {
     SLOW_PAYMENT_RATE: "0",
     NEXT_PUBLIC_FARO_URL: "http://localhost:3100/collect",
     NEXT_PUBLIC_APP_ENVIRONMENT: "test",
+    // Real protobuf exports go to a test-only receiver, never Grafana Cloud.
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://127.0.0.1:3218",
+    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "",
+    OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: "",
+    OTEL_EXPORTER_OTLP_HEADERS: "",
+    OTEL_EXPORTER_OTLP_TRACES_HEADERS: "",
+    OTEL_EXPORTER_OTLP_LOGS_HEADERS: "",
+    OTEL_SDK_DISABLED: "false",
+    OTEL_TRACES_SAMPLER: "parentbased_always_on",
+    OTEL_SERVICE_NAME: "observable-outfitters-api",
   },
 };
 

@@ -7,7 +7,6 @@ Source: [FDE take-home brief](docs/FDE%20Take-Home%20-%20Observable%20Outfitters
 - Keep `npm test`, `npm run lint`, and `npm run typecheck` passing.
 - Keep the app working when Grafana Cloud cannot be reached. Telemetry failures must not break product flows.
 - Never commit credentials. Document the required environment variables and setup commands in `README.md` so the team can use its own Grafana Cloud stack.
-- Record reasoning, trade-offs, assumptions, dead ends, and unfinished work in `docs/WRITEUP.md`. Keep the final write-up to two pages at most.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
