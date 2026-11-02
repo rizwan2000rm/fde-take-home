@@ -5,6 +5,7 @@ import {
   type Faro,
 } from "@grafana/faro-web-sdk";
 import { TracingInstrumentation } from "@grafana/faro-web-tracing";
+import { propagation, ROOT_CONTEXT, SpanKind, SpanStatusCode, type Span } from "@opentelemetry/api";
 
 let faro: Faro | undefined;
 
@@ -52,9 +53,47 @@ export function trackEvent(name: string, attributes: Record<string, string> = {}
   safely(() => faro?.api.pushEvent(name, attributes, "shop", { skipDedupe: true }));
 }
 
-export function trackView(view: "catalog" | "product", attributes: Record<string, string>) {
+export type ShopView = "catalog" | "product" | "cart" | "checkout" | "order_confirmation";
+
+export function trackView(view: ShopView, attributes: Record<string, string>) {
   safely(() => faro?.api.setView({ name: view }));
   trackEvent(`shop.${view}_view`, attributes);
+}
+
+export async function requestApi(path: "/api/cart" | "/api/checkout", init: RequestInit = {}, parentSpan?: Span) {
+  const otel = safely(() => faro?.api.getOTEL());
+  const method = init.method ?? "GET";
+  const parent = otel && parentSpan ? otel.trace.setSpan(ROOT_CONTEXT, parentSpan) : ROOT_CONTEXT;
+  const span = safely(() => otel?.trace.getTracer("observable-outfitters").startSpan(`${method} ${path}`, {
+    kind: SpanKind.CLIENT,
+    attributes: { "http.request.method": method, "url.full": `${window.location.origin}${path}` },
+  }, parent));
+  const headers = new Headers(init.headers);
+  safely(() => {
+    if (otel && span) propagation.inject(otel.trace.setSpan(parent, span), headers, {
+      set: (carrier, key, value) => carrier.set(key, value),
+    });
+  });
+  try {
+    const response = await fetch(path, { ...init, headers });
+    safely(() => {
+      span?.setAttribute("http.response.status_code", response.status);
+      if (response.status >= 400) {
+        span?.setAttribute("error.type", String(response.status));
+        span?.setStatus({ code: SpanStatusCode.ERROR });
+      }
+    });
+    return response;
+  } catch (error) {
+    safely(() => {
+      span?.recordException({ name: "Error", message: "API request failed" });
+      span?.setAttribute("error.type", "network_error");
+      span?.setStatus({ code: SpanStatusCode.ERROR });
+    });
+    throw error;
+  } finally {
+    safely(() => span?.end());
+  }
 }
 
 export function startOperation(name: string, attributes: Record<string, string> = {}) {
@@ -71,6 +110,7 @@ export function startOperation(name: string, attributes: Record<string, string> 
   let finished = false;
 
   return {
+    fetch: (path: "/api/cart" | "/api/checkout", init?: RequestInit) => requestApi(path, init, span),
     finish(outcome: "success" | "fail", errorCode = "none", extra: Record<string, string> = {}) {
       if (finished) return;
       finished = true;

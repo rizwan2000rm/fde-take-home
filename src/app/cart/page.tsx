@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCart } from "@/components/CartProvider";
+import { StoreView } from "@/components/StoreView";
 import { formatPrice } from "@/lib/products";
 
 export default function CartPage() {
@@ -12,6 +13,7 @@ export default function CartPage() {
   if (cart.items.length === 0) {
     return (
       <>
+        <StoreView view="cart" />
         <h1>Your cart</h1>
         <p>
           Your cart is empty. <Link href="/">Continue shopping</Link>
@@ -22,6 +24,7 @@ export default function CartPage() {
 
   return (
     <>
+      <StoreView view="cart" />
       <h1>Your cart</h1>
       <table className="cart-table">
         <thead>

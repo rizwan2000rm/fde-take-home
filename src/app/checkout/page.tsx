@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useCart } from "@/components/CartProvider";
+import { StoreView } from "@/components/StoreView";
 import { formatPrice } from "@/lib/products";
 import { startOperation, trackEvent } from "@/lib/telemetry";
 
@@ -69,14 +70,18 @@ export default function CheckoutPage() {
   if (loading) return <p>Loading…</p>;
   if (cart.items.length === 0) {
     return (
-      <p>
-        Your cart is empty. <Link href="/">Continue shopping</Link>
-      </p>
+      <>
+        <StoreView view="checkout" />
+        <p>
+          Your cart is empty. <Link href="/">Continue shopping</Link>
+        </p>
+      </>
     );
   }
 
   return (
     <>
+      <StoreView view="checkout" />
       <h1>Checkout</h1>
       <p className="muted">
         {cart.itemCount} item(s) · Total {formatPrice(cart.total)}

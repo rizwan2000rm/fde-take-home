@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { StoreView } from "@/components/StoreView";
 import { formatPrice } from "@/lib/products";
 import { getOrder } from "@/lib/store";
 
@@ -10,6 +11,7 @@ export default async function OrderPage({ params }: PageProps<"/orders/[id]">) {
 
   return (
     <>
+      <StoreView view="order_confirmation" />
       <h1>Thank you, {order.shipping.name}! 🎉</h1>
       <p>
         Order <code>{order.id}</code> is confirmed. A receipt is on its way to {order.shipping.email}.

@@ -37,12 +37,14 @@ test("views survive navigation in one Faro session; cart actions have independen
   await expect.poll(() => capture.events("shop.catalog_view").length).toBe(1);
   await add(page);
   await page.getByRole("link", { name: /Cart/ }).click();
+  await expect.poll(() => capture.events("shop.cart_view").length).toBe(1);
   await page.getByRole("button", { name: "Remove", exact: true }).click();
   await expect(page.getByText("Your cart is empty.")).toBeVisible();
-  await expect.poll(() => capture.spans().length).toBe(2);
+  await expect.poll(() => capture.spans().filter((span) => span.name.startsWith("shop.cart_")).length).toBe(2);
+  expect(capture.events("shop.cart_view")).toHaveLength(1);
   await page.goto("/"); // A full document load must resume the session.
   await expect.poll(() => capture.events("shop.catalog_view").length).toBe(2);
-  const spans = capture.spans();
+  const spans = capture.spans().filter((span) => span.name.startsWith("shop.cart_"));
   expect(new Set(spans.map((span) => span.traceId)).size).toBe(2);
   expect(spans.every((span) => !span.parentSpanId)).toBe(true);
   expect(spans.map((span) => span.name).sort()).toEqual(["shop.cart_add", "shop.cart_remove"]);
@@ -52,16 +54,28 @@ test("views survive navigation in one Faro session; cart actions have independen
   expect(capture.events("shop.cart_remove")[0].trace?.trace_id).toBe(spans.find((s) => s.name === "shop.cart_remove")?.traceId);
 });
 
-test("checkout retries count separately; only successful purchases emit units and no form values", async ({ page }) => {
+test("checkout retries link browser actions and HTTP spans without form values", async ({ page }) => {
   const capture = await collect(page);
+  const traceparents: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && request.url().endsWith("/api/checkout")) {
+      traceparents.push(request.headers()["traceparent"]);
+    }
+  });
   await add(page, 2);
   await openCheckout(page);
+  await expect.poll(() => capture.events("shop.cart_view").length).toBe(1);
+  await expect.poll(() => capture.events("shop.checkout_view").length).toBe(1);
+  expect(capture.events("shop.checkout")).toHaveLength(0);
   await page.getByPlaceholder("Card number").fill("4000 0000 0000 0002");
   await page.getByRole("button", { name: /^Pay/ }).click();
   await expect(page.locator(".checkout-form .err")).toContainText("payment was declined");
   await page.getByPlaceholder("Card number").fill("4242 4242 4242 4242");
   await page.getByRole("button", { name: /^Pay/ }).click();
   await expect(page).toHaveURL(/\/orders\/ord_/);
+  await expect.poll(() => capture.events("shop.order_confirmation_view").length).toBe(1);
+  expect(capture.events("shop.cart_view")).toHaveLength(1);
+  expect(capture.events("shop.checkout_view")).toHaveLength(1);
   await expect.poll(() => capture.events("shop.checkout").length).toBe(2);
   await expect.poll(() => capture.spans().filter((s) => s.name === "shop.checkout").length).toBe(2);
   expect(capture.events("shop.checkout").map((event) => event.attributes?.outcome)).toEqual(["fail", "success"]);
@@ -70,7 +84,15 @@ test("checkout retries count separately; only successful purchases emit units an
   const traces = capture.spans().filter((span) => span.name === "shop.checkout");
   expect(new Set(traces.map((span) => span.traceId)).size).toBe(2);
   expect(traces.map((span) => span.status?.code)).toEqual([2, 1]);
+  for (const [index, operation] of traces.entries()) {
+    const client = capture.spans().find((span) => span.name === "POST /api/checkout" && span.parentSpanId === operation.spanId)!;
+    expect(client.traceId).toBe(operation.traceId);
+    expect(client.kind).toBe(3); // OTLP CLIENT
+    expect(traceparents[index]).toBe(`00-${client.traceId}-${client.spanId}-01`);
+  }
   const serialized = JSON.stringify(capture.bodies);
+  const orderId = new URL(page.url()).pathname.split("/").at(-1)!;
+  expect(serialized).not.toContain(orderId);
   for (const value of ["Private Shopper", "private-shopper@example.com", "123 Private Street", "4242 4242", "4000 0000"]) {
     expect(serialized).not.toContain(value);
   }

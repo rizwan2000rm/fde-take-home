@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { CartView } from "@/lib/store";
-import { startOperation } from "@/lib/telemetry";
+import { requestApi, startOperation } from "@/lib/telemetry";
 
 interface CartContextValue {
   cart: CartView;
@@ -15,8 +15,8 @@ interface CartContextValue {
 const EMPTY_CART: CartView = { items: [], itemCount: 0, total: 0 };
 const CartContext = createContext<CartContextValue | null>(null);
 
-async function cartRequest(method: string, body?: object): Promise<CartView> {
-  const res = await fetch("/api/cart", {
+async function cartRequest(method: string, body?: object, operation?: ReturnType<typeof startOperation>): Promise<CartView> {
+  const res = await (operation?.fetch ?? requestApi)("/api/cart", {
     method,
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
@@ -45,7 +45,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const addItem = useCallback(async (productId: string, quantity = 1) => {
     const operation = startOperation("shop.cart_add", { product_id: productId, quantity: String(quantity) });
     try {
-      setCart(await cartRequest("POST", { productId, quantity }));
+      setCart(await cartRequest("POST", { productId, quantity }, operation));
       operation.finish("success");
     } catch (error) {
       operation.finish("fail", "cart_request_failed");
@@ -58,7 +58,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       product_id: productId, quantity: String(quantity),
     });
     try {
-      setCart(await cartRequest("PATCH", { productId, quantity }));
+      setCart(await cartRequest("PATCH", { productId, quantity }, operation));
       operation.finish("success");
     } catch (error) {
       operation.finish("fail", "cart_request_failed");
