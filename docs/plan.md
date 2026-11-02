@@ -1,21 +1,30 @@
-Session (Faro-managed; events and traces grouped by `session_id`)
-- [x] Catalog (view event)
-- [x] Product view (view event)
-- [x] Cart: Add, Remove (separate trace per action)
-- [x] Checkout: Success / Fail (separate trace per attempt)
+# Observability plan
 
-Using Grafana Faro for ease of browser session management and tracing. A session groups view events and operation traces rather than being one long trace.
+## Telemetry
 
-Dashboard [Use a sensible default like Last 5 mins]
-- [x] Active Sessions per Minute (Bar Chart): distinct sessions with recorded activity in each 1-minute bucket
-- [x] Cart Dropoff Rate (Line Chart): inactive sessions with a backend-confirmed cart addition and no accepted order, divided by eligible sessions in the same minute. Frontend and backend activity share the Faro session ID through W3C baggage. Default timeout: 60s demo / 15m normal. One accepted order converts the whole session.
-- [x] Views by Product (Horizontal Bar Chart): explains top viewed products
-- [x] Checkout Attempts (Stacked Bar Chart): completed API requests per minute, split into success and failure
-- [x] Units Purchased by Product (Horizontal Bar Chart): quantities from saved backend orders over the selected range
-- [x] Checkout Failure Rate (Line Chart): failed requests divided by completed API requests; request count in the tooltip
+- [x] Track Faro sessions and catalog, product, cart, checkout, and order-confirmation views.
+- [x] Start a separate trace for each cart change and checkout attempt.
+- [x] Link browser, API, and payment spans; pass the session ID in W3C baggage.
+- [x] Export backend cart additions, checkout outcomes, and purchased units as OTel logs.
+- [x] Exclude shipping/card details and keep shopping working during telemetry outages.
 
-A dashboard answering the core business impact leaning more towards business than debugging. I am sure we can easily adapt to do a debugging dashboard
+## Business dashboard
 
-Aiden workflows
-- [ ] TBD
-- [ ] TBD
+Default range: last 5 minutes. Refresh: 15 seconds.
+
+- [x] Active Sessions per Minute: distinct sessions with recorded events per minute.
+- [x] Cart Dropoff Rate: inactive cart sessions without an accepted order (%).
+- [x] Views by Product: views over the selected range, including repeats.
+- [x] Checkout Attempts: successful and failed API checkout requests per minute.
+- [x] Units Purchased by Product: units in saved orders over the selected range.
+- [x] Checkout Failure Rate: failed / completed API checkout requests (%).
+
+Dropoff uses backend-confirmed cart additions and orders, linked to session activity. Timeout: 60s demo / 15m normal. One accepted order converts the whole session.
+
+Checkout panels show only Successful/Failed. Failure reasons remain in telemetry.
+
+## Pending
+
+- [ ] Document the two Aiden workflows.
+
+Details: [telemetry](telemetry.md), [queries](queries.md), [decisions](decisions.md).
