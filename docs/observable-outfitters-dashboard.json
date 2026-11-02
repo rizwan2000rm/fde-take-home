@@ -169,7 +169,7 @@
     {
       "id": 2,
       "title": "Dropoffs Percentage",
-      "description": "A session is a dropoff if it has at least one successful add-to-cart, has no successful checkout, and has produced no new recorded session events for the selected Dropoff timeout. For each 1-minute bucket, count qualified sessions whose last recorded event plus that timeout falls within the minute; show dropoffs as a percentage of all such qualified sessions. Browsing-only sessions, failed cart additions, and sessions with more recent events are excluded from both counts. Successful cart additions and checkouts are checked across Faro's maximum four-hour session lifetime. Default 60 seconds for the simulator demo; choose 15 minutes normally. This uses recorded-event silence; there is no separate session-termination condition. Missing or delayed events can cause false classification. No eligible sessions shows no data; all eligible sessions converted shows 0%. Any successful checkout converts the whole Faro session. Visual bands: below 30% green, 30% to below 60% amber (warning), and 60% or more red (high). Dashed lines mark the thresholds. These are illustrative demo thresholds, not agreed SLOs or alert rules; tune them to a measured baseline. Legend shows the last non-empty minute and peak over the selected range; gaps remain gaps.",
+      "description": "A session is a dropoff if it has at least one successful add-to-cart, has no successful checkout, and has produced no new recorded session events for the selected Dropoff timeout. For each 1-minute bucket, count qualified sessions whose last recorded event plus that timeout falls within the minute; show dropoffs as a percentage of all such qualified sessions. Browsing-only sessions, failed cart additions, and sessions with more recent events are excluded from both counts. Successful cart additions and checkouts are checked across Faro's maximum four-hour session lifetime. Default 60 seconds for the simulator demo; choose 15 minutes normally. This uses recorded-event silence; there is no separate session-termination condition. Missing or delayed events can cause false classification. No eligible sessions shows no data; all eligible sessions converted shows 0%. Any successful checkout converts the whole Faro session. Visual bands: below 30% green, 30% to below 60% amber (warning), and 60% or more red (high). Dashed lines mark the thresholds. These are illustrative demo thresholds, not agreed SLOs or alert rules; tune them to a measured baseline. Hover the chart to see the rate for a specific minute; gaps remain gaps.",
       "type": "timeseries",
       "datasource": {
         "type": "loki",
@@ -225,19 +225,16 @@
               }
             ]
           },
-          "displayName": "Dropoffs · warn ≥30% · high ≥60%"
+          "displayName": "Dropoffs"
         },
         "overrides": []
       },
       "options": {
         "legend": {
-          "displayMode": "table",
+          "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true,
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
+          "showLegend": false,
+          "calcs": []
         },
         "tooltip": {
           "mode": "multi",
@@ -542,7 +539,7 @@
     {
       "id": 6,
       "title": "Checkout Error Rate",
-      "description": "For each 1-minute bucket: failed checkout attempts / all completed attempts × 100. Retries count separately. No attempts shows no data; successful attempts with no failures show 0%. Visual bands: below 5% green, 5% to below 10% amber (warning), and 10% or more red (high). Dashed lines mark the thresholds. These are illustrative demo thresholds, not agreed SLOs or alert rules; tune them to a measured baseline. Legend shows the last non-empty minute and peak over the selected range; gaps remain gaps.",
+      "description": "For each 1-minute bucket: failed checkout attempts / all completed attempts × 100. Retries count separately. No attempts shows no data; successful attempts with no failures show 0%. Visual bands: below 5% green, 5% to below 10% amber (warning), and 10% or more red (high). Dashed lines mark the thresholds. These are illustrative demo thresholds, not agreed SLOs or alert rules; tune them to a measured baseline. Hover the chart to see the rate for a specific minute; gaps remain gaps.",
       "type": "timeseries",
       "datasource": {
         "type": "loki",
@@ -598,19 +595,16 @@
               }
             ]
           },
-          "displayName": "Errors · warn ≥5% · high ≥10%"
+          "displayName": "Checkout error rate"
         },
         "overrides": []
       },
       "options": {
         "legend": {
-          "displayMode": "table",
+          "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true,
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
+          "showLegend": false,
+          "calcs": []
         },
         "tooltip": {
           "mode": "multi",

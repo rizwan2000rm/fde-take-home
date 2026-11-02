@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { resolveCartId } from "@/lib/cart-cookie";
 import { chargeCard, PaymentDeclinedError } from "@/lib/payments";
 import { clearCart, getCart, MAX_QTY_IN_STOCK, saveOrder, type CartView, type ShippingDetails } from "@/lib/store";
+import { setServerAttributes, traceApiRoute } from "@/lib/server-telemetry";
 
 interface CheckoutRequest {
   shipping: ShippingDetails;
@@ -25,10 +26,11 @@ function validateCheckout(shipping: ShippingDetails | undefined, cart: CartView)
 }
 
 function fail({ status, error, details = {} }: CheckoutError) {
+  setServerAttributes({ "shop.error_code": error });
   return NextResponse.json({ error, ...details }, { status });
 }
 
-export async function POST(request: NextRequest) {
+export const POST = traceApiRoute("/api/checkout", async function POST(request: NextRequest) {
   const { cartId } = resolveCartId(request);
   const { shipping, cardNumber }: CheckoutRequest = await request.json();
   const cart = getCart(cartId);
@@ -57,4 +59,4 @@ export async function POST(request: NextRequest) {
   clearCart(cartId);
 
   return NextResponse.json({ orderId: order.id }, { status: 201 });
-}
+});
