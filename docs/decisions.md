@@ -1,0 +1,4 @@
+- Use Faro for session management.
+- Use `persistent: false`: sessions continue across same-tab navigation/reloads, but generally aren’t shared across independent tabs.
+- A session is a dropoff if it has at least one successful add-to-cart, has no successful checkout, and has produced no new recorded session events for X minutes [tradeoff: ingestion delay could raise false alerts] 
+- Flow (checkout -> add to cart -> terminate session) is not considered as a dropoff [rare scenario: where a user does multiple checkouts in one sess]
