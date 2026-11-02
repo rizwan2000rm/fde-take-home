@@ -1,0 +1,544 @@
+{
+  "id": null,
+  "uid": "observable-outfitters-business",
+  "title": "Observable Outfitters \u00b7 Business Impact",
+  "description": "Shopping activity, conversion so far, product interest and checkout outcomes from Grafana Faro. Dropoff is a rolling non-conversion proxy, not a finalized cohort. Browser telemetry is best effort.",
+  "tags": [
+    "observable-outfitters",
+    "business",
+    "faro"
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "browser",
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "refresh": "15s",
+  "timepicker": {
+    "refresh_intervals": [
+      "15s",
+      "30s",
+      "1m",
+      "5m"
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "logs",
+        "label": "Loki",
+        "type": "datasource",
+        "query": "loki",
+        "current": {
+          "text": "grafanacloud-jumbolentil581-logs",
+          "value": "grafanacloud-logs"
+        },
+        "refresh": 1
+      },
+      {
+        "name": "environment",
+        "label": "Environment",
+        "type": "custom",
+        "query": "development,test,production",
+        "current": {
+          "text": "development",
+          "value": "development"
+        },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": false,
+        "options": [
+          {
+            "text": "development",
+            "value": "development",
+            "selected": true
+          },
+          {
+            "text": "test",
+            "value": "test",
+            "selected": false
+          },
+          {
+            "text": "production",
+            "value": "production",
+            "selected": false
+          }
+        ]
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Total Sessions",
+      "description": "Distinct Faro sessions with an event in the selected time range. Sessions are visitors, not unique people; reloads do not add sessions. Sampling is 100%.",
+      "type": "barchart",
+      "datasource": {
+        "type": "loki",
+        "uid": "$logs"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short",
+          "decimals": 0,
+          "min": 0,
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "orientation": "vertical",
+        "xField": "metric",
+        "showValue": "always",
+        "barWidth": 0.7,
+        "groupWidth": 0.7,
+        "stacking": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "label_replace((count(sum by (session_id) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | session_id!=\"\" [$__range]))) or vector(0)), \"metric\", \"Sessions\", \"\", \"\")",
+          "queryType": "instant",
+          "editorMode": "code",
+          "datasource": {
+            "type": "loki",
+            "uid": "$logs"
+          },
+          "legendFormat": "Sessions",
+          "interval": "15s"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "Value #A": "Sessions"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Dropoffs Percentage",
+      "description": "Rolling selected-range lookback: sessions with activity but no successful checkout in the same window, divided by active sessions. This includes shoppers still browsing, so this is non-conversion so far, not confirmed abandonment. Empty periods show no data. A failed attempt followed by success counts as converted.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "$logs"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * ((count((sum by (session_id) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | session_id!=\"\" [$__range]))) unless (sum by (session_id) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | event_name=\"shop.checkout\" | event_data_outcome=\"success\" | session_id!=\"\" [$__range]))))) or vector(0)) / count(sum by (session_id) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | session_id!=\"\" [$__range])))",
+          "queryType": "range",
+          "editorMode": "code",
+          "datasource": {
+            "type": "loki",
+            "uid": "$logs"
+          },
+          "legendFormat": "Dropoffs Percentage",
+          "interval": "15s"
+        }
+      ],
+      "interval": "15s",
+      "maxDataPoints": 300
+    },
+    {
+      "id": 3,
+      "title": "Views by Product",
+      "description": "Product page views in the selected range; repeat visits count again. Horizontal bars rank products by views.",
+      "type": "barchart",
+      "datasource": {
+        "type": "loki",
+        "uid": "$logs"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short",
+          "decimals": 0,
+          "min": 0,
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "orientation": "horizontal",
+        "xField": "event_data_product_id",
+        "showValue": "always",
+        "barWidth": 0.7,
+        "groupWidth": 0.7,
+        "stacking": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (event_data_product_id) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | event_name=\"shop.product_view\" [$__range]))",
+          "queryType": "instant",
+          "editorMode": "code",
+          "datasource": {
+            "type": "loki",
+            "uid": "$logs"
+          },
+          "legendFormat": "{{event_data_product_id}}",
+          "interval": "15s"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "Value #A": "Views"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "field": "Views",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Checkouts",
+      "description": "Completed checkout attempts per time bucket, stacked by success/fail. Every retry is a separate attempt; validation and payment failures are included. Pending attempts appear when they finish.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "$logs"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short",
+          "decimals": 0,
+          "min": 0,
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 0,
+            "fillOpacity": 85,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "barWidthFactor": 0.8
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "success"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "fail"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (event_data_outcome) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | event_name=\"shop.checkout\" [$__interval]))",
+          "queryType": "range",
+          "editorMode": "code",
+          "datasource": {
+            "type": "loki",
+            "uid": "$logs"
+          },
+          "legendFormat": "{{event_data_outcome}}",
+          "interval": "15s"
+        }
+      ],
+      "interval": "15s",
+      "maxDataPoints": 300
+    },
+    {
+      "id": 5,
+      "title": "Checkouts by Product",
+      "description": "Units purchased per product in the selected range, summed only after a successful checkout response. Declines and out-of-stock attempts contribute no units. Browser-observed purchases are not an accounting ledger.",
+      "type": "barchart",
+      "datasource": {
+        "type": "loki",
+        "uid": "$logs"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short",
+          "decimals": 0,
+          "min": 0,
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "orientation": "horizontal",
+        "xField": "event_data_product_id",
+        "showValue": "always",
+        "barWidth": 0.7,
+        "groupWidth": 0.7,
+        "stacking": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (event_data_product_id) (sum_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | event_name=\"shop.product_purchased\" | unwrap event_data_quantity | __error__=\"\" [$__range]))",
+          "queryType": "instant",
+          "editorMode": "code",
+          "datasource": {
+            "type": "loki",
+            "uid": "$logs"
+          },
+          "legendFormat": "{{event_data_product_id}}",
+          "interval": "15s"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "Value #A": "Units"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "field": "Units",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Checkout Error Rate",
+      "description": "Rolling selected-range lookback: failed checkout attempts / all completed attempts \u00d7 100. Retries count separately. No attempts shows no data; successful attempts with no failures show 0%.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "$logs"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * ((sum(count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | event_name=\"shop.checkout\" | event_data_outcome=\"fail\" [$__range]))) or vector(0)) / sum(count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | event_name=\"shop.checkout\" [$__range]))",
+          "queryType": "range",
+          "editorMode": "code",
+          "datasource": {
+            "type": "loki",
+            "uid": "$logs"
+          },
+          "legendFormat": "Checkout Error Rate",
+          "interval": "15s"
+        }
+      ],
+      "interval": "15s",
+      "maxDataPoints": 300
+    }
+  ]
+}
