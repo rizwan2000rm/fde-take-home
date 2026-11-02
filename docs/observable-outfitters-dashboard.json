@@ -2,7 +2,7 @@
   "id": null,
   "uid": "observable-outfitters-business",
   "title": "Observable Outfitters \u00b7 Business Impact",
-  "description": "Shopping activity, conversion so far, product interest and checkout outcomes from Grafana Faro. Dropoff is a rolling non-conversion proxy, not a finalized cohort. Browser telemetry is best effort.",
+  "description": "Shopping activity, dropoff after successful cart addition, product interest and checkout outcomes from Grafana Faro in 1-minute time buckets; product rankings cover the selected range. Dropoff requires no successful checkout and no new recorded session events for the configurable timeout: 60 seconds for the simulator demo or 15 minutes normally. Faro sessions group shopping journeys; browser telemetry is best effort.",
   "tags": [
     "observable-outfitters",
     "business",
@@ -67,15 +67,40 @@
             "selected": false
           }
         ]
+      },
+      {
+        "name": "idle_timeout_seconds",
+        "label": "Dropoff timeout",
+        "description": "Required time with no new recorded events for the same Faro session before counting dropoff. Requires a successful add-to-cart and no successful checkout. Demo default 60 seconds allows headroom for simulator navigation, payment waits, and telemetry delivery; choose 15 minutes normally. This is a dashboard rule, not Faro's session expiry.",
+        "type": "custom",
+        "query": "Demo (60s) : 60,Normal (15m) : 900",
+        "current": {
+          "text": "Demo (60s)",
+          "value": "60"
+        },
+        "includeAll": false,
+        "multi": false,
+        "options": [
+          {
+            "text": "Demo (60s)",
+            "value": "60",
+            "selected": true
+          },
+          {
+            "text": "Normal (15m)",
+            "value": "900",
+            "selected": false
+          }
+        ]
       }
     ]
   },
   "panels": [
     {
       "id": 1,
-      "title": "Total Sessions",
-      "description": "Distinct Faro sessions with an event in the selected time range. Sessions are visitors, not unique people; reloads do not add sessions. Sampling is 100%.",
-      "type": "barchart",
+      "title": "Active Sessions per Minute",
+      "description": "Distinct Faro sessions with at least one event in each 1-minute bucket. A session can appear in multiple buckets, so do not sum these bars to calculate total sessions. Sessions are not unique people; reloads do not add sessions. Sampling is 100%.",
+      "type": "timeseries",
       "datasource": {
         "type": "loki",
         "uid": "$logs"
@@ -94,7 +119,19 @@
           "unit": "short",
           "decimals": 0,
           "min": 0,
-          "custom": {}
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 0,
+            "fillOpacity": 85,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "barAlignment": -1,
+            "barWidthFactor": 0.8
+          }
         },
         "overrides": []
       },
@@ -105,48 +142,32 @@
           "showLegend": false
         },
         "tooltip": {
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
-        },
-        "orientation": "vertical",
-        "xField": "metric",
-        "showValue": "always",
-        "barWidth": 0.7,
-        "groupWidth": 0.7,
-        "stacking": "none"
+        }
       },
       "targets": [
         {
           "refId": "A",
-          "expr": "label_replace((count(sum by (session_id) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | session_id!=\"\" [$__range]))) or vector(0)), \"metric\", \"Sessions\", \"\", \"\")",
-          "queryType": "instant",
+          "expr": "count(sum by (session_id) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | __error__=\"\" | session_id!=\"\" [1m]))) or vector(0)",
+          "queryType": "range",
           "editorMode": "code",
           "datasource": {
             "type": "loki",
             "uid": "$logs"
           },
           "legendFormat": "Sessions",
-          "interval": "15s"
+          "interval": "1m",
+          "step": "1m"
         }
       ],
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true
-            },
-            "renameByName": {
-              "Value #A": "Sessions"
-            }
-          }
-        }
-      ]
+      "interval": "1m",
+      "maxDataPoints": 300
     },
     {
       "id": 2,
       "title": "Dropoffs Percentage",
-      "description": "Rolling selected-range lookback: sessions with activity but no successful checkout in the same window, divided by active sessions. This includes shoppers still browsing, so this is non-conversion so far, not confirmed abandonment. Empty periods show no data. A failed attempt followed by success counts as converted.",
+      "description": "A session is a dropoff if it has at least one successful add-to-cart, has no successful checkout, and has produced no new recorded session events for the selected Dropoff timeout. For each 1-minute bucket, count qualified sessions whose last recorded event plus that timeout falls within the minute; show dropoffs as a percentage of all such qualified sessions. Browsing-only sessions, failed cart additions, and sessions with more recent events are excluded from both counts. Successful cart additions and checkouts are checked across Faro's maximum four-hour session lifetime. Default 60 seconds for the simulator demo; choose 15 minutes normally. This uses recorded-event silence; there is no separate session-termination condition. Missing or delayed events can cause false classification. No eligible sessions shows no data; all eligible sessions converted shows 0%. Any successful checkout converts the whole Faro session.",
       "type": "timeseries",
       "datasource": {
         "type": "loki",
@@ -188,14 +209,14 @@
           "showLegend": false
         },
         "tooltip": {
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * ((count((sum by (session_id) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | session_id!=\"\" [$__range]))) unless (sum by (session_id) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | event_name=\"shop.checkout\" | event_data_outcome=\"success\" | session_id!=\"\" [$__range]))))) or vector(0)) / count(sum by (session_id) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | session_id!=\"\" [$__range])))",
+          "expr": "100 * ((count((((sum by (session_id) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | __error__=\"\" | session_id!=\"\" [1m] offset ${idle_timeout_seconds}s))) unless (sum by (session_id) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | __error__=\"\" | session_id!=\"\" [${idle_timeout_seconds}s])))) and (sum by (session_id) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | __error__=\"\" | session_id!=\"\" | event_name=\"shop.cart_add\" | event_data_outcome=\"success\" [4h1m] offset ${idle_timeout_seconds}s)))) unless (sum by (session_id) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | __error__=\"\" | session_id!=\"\" | event_name=\"shop.checkout\" | event_data_outcome=\"success\" [4h1m] offset ${idle_timeout_seconds}s))))) or vector(0)) / count((((sum by (session_id) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | __error__=\"\" | session_id!=\"\" [1m] offset ${idle_timeout_seconds}s))) unless (sum by (session_id) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | __error__=\"\" | session_id!=\"\" [${idle_timeout_seconds}s])))) and (sum by (session_id) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | __error__=\"\" | session_id!=\"\" | event_name=\"shop.cart_add\" | event_data_outcome=\"success\" [4h1m] offset ${idle_timeout_seconds}s)))))",
           "queryType": "range",
           "editorMode": "code",
           "datasource": {
@@ -203,10 +224,11 @@
             "uid": "$logs"
           },
           "legendFormat": "Dropoffs Percentage",
-          "interval": "15s"
+          "interval": "1m",
+          "step": "1m"
         }
       ],
-      "interval": "15s",
+      "interval": "1m",
       "maxDataPoints": 300
     },
     {
@@ -243,7 +265,7 @@
           "showLegend": false
         },
         "tooltip": {
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         },
         "orientation": "horizontal",
@@ -263,8 +285,7 @@
             "type": "loki",
             "uid": "$logs"
           },
-          "legendFormat": "{{event_data_product_id}}",
-          "interval": "15s"
+          "legendFormat": "{{event_data_product_id}}"
         }
       ],
       "transformations": [
@@ -296,7 +317,7 @@
     {
       "id": 4,
       "title": "Checkouts",
-      "description": "Completed checkout attempts per time bucket, stacked by success/fail. Every retry is a separate attempt; validation and payment failures are included. Pending attempts appear when they finish.",
+      "description": "Completed checkout attempts per 1-minute bucket, stacked by success/fail. Every retry is a separate attempt; validation and payment failures are included. Pending attempts appear when they finish.",
       "type": "timeseries",
       "datasource": {
         "type": "loki",
@@ -326,7 +347,8 @@
               "mode": "normal",
               "group": "A"
             },
-            "barWidthFactor": 0.8
+            "barWidthFactor": 0.8,
+            "barAlignment": -1
           }
         },
         "overrides": [
@@ -369,14 +391,14 @@
           "showLegend": true
         },
         "tooltip": {
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (event_data_outcome) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | event_name=\"shop.checkout\" [$__interval]))",
+          "expr": "sum by (event_data_outcome) (count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | event_name=\"shop.checkout\" [1m]))",
           "queryType": "range",
           "editorMode": "code",
           "datasource": {
@@ -384,10 +406,11 @@
             "uid": "$logs"
           },
           "legendFormat": "{{event_data_outcome}}",
-          "interval": "15s"
+          "interval": "1m",
+          "step": "1m"
         }
       ],
-      "interval": "15s",
+      "interval": "1m",
       "maxDataPoints": 300
     },
     {
@@ -424,7 +447,7 @@
           "showLegend": false
         },
         "tooltip": {
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         },
         "orientation": "horizontal",
@@ -444,8 +467,7 @@
             "type": "loki",
             "uid": "$logs"
           },
-          "legendFormat": "{{event_data_product_id}}",
-          "interval": "15s"
+          "legendFormat": "{{event_data_product_id}}"
         }
       ],
       "transformations": [
@@ -477,7 +499,7 @@
     {
       "id": 6,
       "title": "Checkout Error Rate",
-      "description": "Rolling selected-range lookback: failed checkout attempts / all completed attempts \u00d7 100. Retries count separately. No attempts shows no data; successful attempts with no failures show 0%.",
+      "description": "For each 1-minute bucket: failed checkout attempts / all completed attempts \u00d7 100. Retries count separately. No attempts shows no data; successful attempts with no failures show 0%.",
       "type": "timeseries",
       "datasource": {
         "type": "loki",
@@ -519,14 +541,14 @@
           "showLegend": false
         },
         "tooltip": {
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * ((sum(count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | event_name=\"shop.checkout\" | event_data_outcome=\"fail\" [$__range]))) or vector(0)) / sum(count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | event_name=\"shop.checkout\" [$__range]))",
+          "expr": "100 * ((sum(count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | event_name=\"shop.checkout\" | event_data_outcome=\"fail\" [1m]))) or vector(0)) / sum(count_over_time({service_name=\"observable-outfitters\", kind=\"event\", deployment_environment=~\"$environment\"} | logfmt | event_name=\"shop.checkout\" [1m]))",
           "queryType": "range",
           "editorMode": "code",
           "datasource": {
@@ -534,10 +556,11 @@
             "uid": "$logs"
           },
           "legendFormat": "Checkout Error Rate",
-          "interval": "15s"
+          "interval": "1m",
+          "step": "1m"
         }
       ],
-      "interval": "15s",
+      "interval": "1m",
       "maxDataPoints": 300
     }
   ]
