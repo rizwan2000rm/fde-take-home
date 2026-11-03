@@ -1,25 +1,19 @@
 # Dashboard queries
 
-Source: [dashboard JSON](observable-outfitters-dashboard.json). Six panels; all queries below match the JSON.
+Expand a panel below for its full queries, matching the [dashboard JSON](observable-outfitters-dashboard.json).
 
-| Panel | Data source | Shows |
-| --- | --- | --- |
-| Active Sessions per Minute | Frontend events | Distinct sessions with recorded events per minute. |
-| Cart Dropoff Rate | Frontend + backend events | Percentage of inactive cart sessions without an accepted order. |
-| Views by Product | Frontend events | Views per product over the selected range, including repeats. |
-| Checkout Attempts | Backend events | Successful and failed checkouts per minute. |
-| Units Purchased by Product | Backend events | Units per product in saved orders over the selected range. |
-| Checkout Failure Rate | Backend events | Failed checkouts as a percentage of completed checkouts. |
+| Panel | Calculation |
+| --- | --- |
+| Active Sessions per Minute | Distinct frontend `session_id`s with recorded events in `[1m]`. |
+| Cart Dropoff Rate | `100 * $DroppedSessions / $EligibleSessions` |
+| Views by Product | Count frontend `shop.product_view` events by product over `$__range`, including repeats. |
+| Units Purchased by Product | Sum backend `shop.product_purchased` quantities by product over `$__range`. |
+| Checkout Error Rate | `100 * $FailedAttempts / $CompletedAttempts` |
 
-Backend events are OTel logs from `observable-outfitters-api`, correlated with API/payment spans. Native OTLP fields use underscores in Loki, including `session_id`, `event_name`, and `event_data_*`. Backend queries filter `deployment_environment_name`; Faro uses `deployment_environment`.
+## Queries
 
-Dropoff joins both sources by the anonymous Faro session ID propagated in W3C baggage. Successful cart additions and orders come from the backend; activity includes recorded frontend and backend events. A session qualifies after 60s (demo) or 15m (normal) of inactivity. The history is 4h1m; one accepted order converts the whole session. Direct API calls without a Faro session count toward checkout totals but not session dropoff.
-
-Percentage panels use named counts and Grafana Math. Empty counts are zero; `0 / 0` leaves a gap. Checkout tooltip includes completed request count. Failures include all unsuccessful completed requests, regardless of cause. Failure reasons remain in telemetry. Leaving before submission is measured by cart dropoff. Thresholds are omitted until a baseline exists. Time charts use a 1-minute interval.
-
-Backend counts start when log export is enabled; earlier frontend events are not substituted. Exports are best effort, not an order ledger.
-
-## Active Sessions per Minute
+<details>
+<summary>Active Sessions per Minute</summary>
 
 ```logql
 # Count distinct active sessions in each minute; show 0 when empty.
@@ -37,7 +31,10 @@ count(
 or vector(0)
 ```
 
-## Cart Dropoff Rate
+</details>
+
+<details>
+<summary>Cart Dropoff Rate</summary>
 
 ### EligibleSessions
 
@@ -146,7 +143,10 @@ or vector(0)
 100 * $DroppedSessions / $EligibleSessions
 ```
 
-## Views by Product
+</details>
+
+<details>
+<summary>Views by Product</summary>
 
 ```logql
 # Count product views over the selected dashboard range, including repeat views.
@@ -160,21 +160,10 @@ sum by (event_data_product_id) (
 )
 ```
 
-## Checkout Attempts
+</details>
 
-```logql
-# Count each completed API checkout once.
-sum by (event_data_outcome) (
-  count_over_time(
-    {service_name="observable-outfitters-api"}
-      | deployment_environment_name=~"$environment"
-      | event_name="shop.checkout"
-      [1m]
-  )
-)
-```
-
-## Units Purchased by Product
+<details>
+<summary>Units Purchased by Product</summary>
 
 ```logql
 # Sum server-recorded order quantities; browser confirmation is not required.
@@ -190,7 +179,10 @@ sum by (event_data_product_id) (
 )
 ```
 
-## Checkout Failure Rate
+</details>
+
+<details>
+<summary>Checkout Error Rate</summary>
 
 ### CompletedAttempts
 
@@ -228,3 +220,20 @@ or vector(0)
 ```text
 100 * $FailedAttempts / $CompletedAttempts
 ```
+
+</details>
+
+## Rate definitions
+
+- `EligibleSessions`: sessions reaching the inactivity timeout in the current minute, with a backend-confirmed cart addition.
+- `DroppedSessions`: eligible sessions without a backend-accepted order. Cart additions and orders use a `4h1m` lookback ending at the start of the inactivity window; any accepted order in that history converts the whole session.
+- `CompletedAttempts`: backend `shop.checkout` events in `[1m]`, one per completed API request.
+- `FailedAttempts`: completed attempts with `event_data_outcome="fail"` (HTTP ≥400), including declines, validation/stock rejections, provider errors, and API exceptions. Browser failures and requests without a recorded API completion are excluded.
+
+## Query conventions
+
+- Frontend: `service_name="observable-outfitters"`, environment field `deployment_environment`. Backend: `service_name="observable-outfitters-api"`, environment field `deployment_environment_name`. Both filter by `$environment`.
+- Dropoff joins frontend/backend activity by Faro `session_id` propagated via W3C baggage. Inactivity: `${idle_timeout_seconds}` (60s demo; 900s normal). Requests without a session ID affect checkout counts but cannot enter dropoff counts.
+- Loki fields use underscores: `session_id`, `event_name`, `event_data_*`; product grouping uses `event_data_product_id`, quantities use `event_data_quantity`.
+- Empty rate counts become zero; `0 / 0` leaves a gap. Time charts use a 1-minute interval.
+- Backend counts begin when log export is enabled. Telemetry is best effort; ingestion delays can distort dropoff.

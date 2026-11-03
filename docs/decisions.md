@@ -1,5 +1,0 @@
-- Use Faro for RUM session management & otel node libs for BE instrumentation
-- Use `persistent: false`: sessions continue across same-tab navigation/reloads, but generally aren’t shared across independent tabs.
-- A session is a dropoff after X minutes without recorded activity, with a backend-confirmed cart addition and no accepted order. W3C baggage links its frontend and backend events. Ingestion delay can cause false dropoffs.
-- Flow (checkout -> add to cart -> terminate session) is not considered as a dropoff [rare scenario: where a user does multiple checkouts in one sess]
-- The business dashboard must not distinguish cancelled from failed checkouts; both belong under Failed.
