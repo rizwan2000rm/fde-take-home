@@ -352,115 +352,6 @@
       ]
     },
     {
-      "id": 4,
-      "title": "Checkout Attempts",
-      "description": "Successful and failed checkout requests per minute.",
-      "type": "timeseries",
-      "datasource": {
-        "type": "loki",
-        "uid": "$logs"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 8
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "blue"
-          },
-          "unit": "short",
-          "decimals": 0,
-          "min": 0,
-          "custom": {
-            "drawStyle": "bars",
-            "lineWidth": 0,
-            "fillOpacity": 85,
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "mode": "normal",
-              "group": "A"
-            },
-            "barWidthFactor": 0.8,
-            "barAlignment": -1,
-            "axisLabel": "Attempts / min"
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "success"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "green"
-                }
-              },
-              {
-                "id": "displayName",
-                "value": "Successful"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "fail"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "red"
-                }
-              },
-              {
-                "id": "displayName",
-                "value": "Failed"
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "# Count each completed API checkout once.\nsum by (event_data_outcome) (\n  count_over_time(\n    {service_name=\"observable-outfitters-api\"}\n      | deployment_environment_name=~\"$environment\"\n      | event_name=\"shop.checkout\"\n      [1m]\n  )\n)",
-          "queryType": "range",
-          "editorMode": "code",
-          "datasource": {
-            "type": "loki",
-            "uid": "$logs"
-          },
-          "legendFormat": "{{event_data_outcome}}",
-          "interval": "1m",
-          "step": "1m"
-        }
-      ],
-      "interval": "1m",
-      "maxDataPoints": 300
-    },
-    {
       "id": 5,
       "title": "Units Purchased by Product",
       "description": "Units per product in orders saved by the backend over the selected range.",
@@ -471,7 +362,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 24,
         "x": 0,
         "y": 16
       },
@@ -546,8 +437,8 @@
     },
     {
       "id": 6,
-      "title": "Checkout Failure Rate",
-      "description": "Failed checkout requests as a percentage of completed requests.",
+      "title": "Checkout Error Rate",
+      "description": "Checkout API responses with HTTP status >=400 as a percentage of all completed checkout requests per minute. Includes card declines, validation/stock rejections, payment-provider errors, and API exceptions. Frontend failures are excluded. No completed requests leaves a gap.",
       "type": "timeseries",
       "datasource": {
         "type": "loki",
@@ -557,7 +448,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 16
+        "y": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -583,7 +474,7 @@
               "mode": "off"
             },
             "pointSize": 5,
-            "axisLabel": "Failed attempts (%)",
+            "axisLabel": "Checkout errors (%)",
             "axisPlacement": "left"
           },
           "max": 100
@@ -604,7 +495,7 @@
               },
               {
                 "id": "displayName",
-                "value": "Failure rate"
+                "value": "Error rate"
               }
             ]
           },
