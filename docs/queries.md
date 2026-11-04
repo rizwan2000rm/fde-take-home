@@ -2,6 +2,8 @@
 
 Expand a panel below for its full queries, matching the [dashboard JSON](observable-outfitters-dashboard.json).
 
+These queries assume the Grafana Cloud frontend application is named `observable-outfitters` and the backend `OTEL_SERVICE_NAME` is `observable-outfitters-api`. Grafana Cloud sets the frontend `service_name` from its application name, overriding the SDK's app name. For a different Cloud application name, update both the frontend selectors and the combined frontend/backend regex selectors as described in the [dashboard setup instructions](../README.md#6-import-the-business-dashboard).
+
 | Panel | Calculation |
 | --- | --- |
 | Active Sessions per Minute | Distinct frontend `session_id`s with recorded events in `[1m]`. |
