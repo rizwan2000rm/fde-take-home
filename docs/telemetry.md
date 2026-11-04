@@ -1,11 +1,3 @@
-# Observability plan
-
-## Instrumentation decisions
-
-- Use Faro for browser RUM and session management; OpenTelemetry Node libraries for backend instrumentation.
-- Use `persistent: false`: sessions survive same-tab navigation/reloads but generally remain independent across tabs.
-- Propagate Faro session IDs via W3C baggage to link frontend and backend events.
-
 ## Telemetry
 
 ### FE Events
@@ -58,14 +50,4 @@
 
 ![Dashboard](dashboard.png "Business dashboard")
 
-### Dropoff Details
-- intent: include sessions with at least one cart addition
-- no recorded activity for x mins without a success order; configurable (demo: 60s / default: 15m) [delayed telemetry can cause false dropoffs]
-- An accepted order converts the whole session, including checkout → add another product → leave.
-
-Checkout errors include card declines, validation/stock rejections, payment-provider errors, and API exceptions. Frontend failures are excluded.
-
 Full dashboard queries: [queries](queries.md).
-
-## Pending
-- [ ] Document the two Aiden workflows.
