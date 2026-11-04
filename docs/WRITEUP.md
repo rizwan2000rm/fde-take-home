@@ -66,5 +66,4 @@ Big Failures: did not instrument the API and connected FE with BE for cross serv
 2. add alerts: 4xx, 5xx errors on imp api
 3. Also two aiden workflows obv -- blocked due to them not being available anymore in the community edition :)
 
-**Demo recording:** pending; add a 1–2 minute walkthrough of Grafana and both
-Aiden workflows.
+**Demo recording:** [Watch the demo recording](demo-recording.mov).
